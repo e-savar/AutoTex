@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, Eye, EyeOff, FileDown, RefreshCw } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 
 // Types
@@ -18,6 +18,43 @@ interface OllamaModel {
   size: number;
 }
 
+// Load MathJax dynamically
+const loadMathJax = () => {
+  return new Promise((resolve) => {
+    if (window.MathJax) {
+      resolve(window.MathJax);
+      return;
+    }
+
+    // Configure MathJax
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true,
+        tags: 'ams'
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      },
+      startup: {
+        ready: () => {
+          window.MathJax.startup.defaultReady();
+          resolve(window.MathJax);
+        }
+      }
+    };
+
+    // Load MathJax script
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js';
+    script.async = true;
+    document.head.appendChild(script);
+  });
+};
+
 const App: React.FC = () => {
   const [naturalText, setNaturalText] = useState('');
   const [latexOutput, setLatexOutput] = useState('');
@@ -28,6 +65,24 @@ const App: React.FC = () => {
   const [availableModels, setAvailableModels] = useState<string[]>(['llama3.2', 'llama2', 'codellama', 'mistral']);
   const [debugInfo, setDebugInfo] = useState('');
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+  const [mathJaxLoaded, setMathJaxLoaded] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Load MathJax on component mount
+  useEffect(() => {
+    loadMathJax().then(() => {
+      setMathJaxLoaded(true);
+    });
+  }, []);
+
+  // Re-render MathJax when LaTeX output changes
+  useEffect(() => {
+    if (mathJaxLoaded && latexOutput && window.MathJax && previewRef.current) {
+      window.MathJax.typesetPromise([previewRef.current]).catch((err: any) => {
+        console.error('MathJax rendering error:', err);
+      });
+    }
+  }, [latexOutput, mathJaxLoaded, showPreview]);
 
   // Check Ollama connection on mount
   useEffect(() => {
@@ -221,22 +276,22 @@ ${latexOutput}
   const renderLatexPreview = (latex: string) => {
     if (!latex) return '';
     
-    // Enhanced LaTeX preview with more robust parsing
+    // Enhanced LaTeX to HTML conversion with better math handling
     let preview = latex;
     
-    // Handle common LaTeX commands for preview
+    // Handle document structure
     preview = preview
       .replace(/\\documentclass\{[^}]+\}/g, '')
       .replace(/\\usepackage(\[[^\]]*\])?\{[^}]+\}/g, '')
       .replace(/\\begin\{document\}/g, '')
       .replace(/\\end\{document\}/g, '')
-      .replace(/\\title\{([^}]+)\}/g, '<h1 style="text-align: center; margin: 1rem 0;">$1</h1>')
-      .replace(/\\author\{([^}]+)\}/g, '<p style="text-align: center; font-style: italic;">$1</p>')
-      .replace(/\\date\{([^}]+)\}/g, '<p style="text-align: center; font-size: 0.9em;">$1</p>')
+      .replace(/\\title\{([^}]+)\}/g, '<h1 class="text-2xl font-bold text-center mb-4">$1</h1>')
+      .replace(/\\author\{([^}]+)\}/g, '<p class="text-center italic mb-2">$1</p>')
+      .replace(/\\date\{([^}]+)\}/g, '<p class="text-center text-sm text-gray-600 mb-4">$1</p>')
       .replace(/\\maketitle/g, '')
-      .replace(/\\section\{([^}]+)\}/g, '<h2 style="color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem;">$1</h2>')
-      .replace(/\\subsection\{([^}]+)\}/g, '<h3 style="color: #374151;">$1</h3>')
-      .replace(/\\subsubsection\{([^}]+)\}/g, '<h4 style="color: #4b5563;">$1</h4>')
+      .replace(/\\section\{([^}]+)\}/g, '<h2 class="text-xl font-semibold mt-6 mb-3 pb-2 border-b border-gray-300">$1</h2>')
+      .replace(/\\subsection\{([^}]+)\}/g, '<h3 class="text-lg font-medium mt-4 mb-2">$1</h3>')
+      .replace(/\\subsubsection\{([^}]+)\}/g, '<h4 class="text-base font-medium mt-3 mb-2">$1</h4>')
       .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
       .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
       .replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
@@ -244,13 +299,11 @@ ${latexOutput}
       .replace(/\\\\/g, '<br>')
       .replace(/\\newline/g, '<br>')
       .replace(/\\par/g, '<br><br>')
-      .replace(/\\begin\{itemize\}/g, '<ul>')
+      .replace(/\\begin\{itemize\}/g, '<ul class="list-disc ml-6 my-2">')
       .replace(/\\end\{itemize\}/g, '</ul>')
-      .replace(/\\begin\{enumerate\}/g, '<ol>')
+      .replace(/\\begin\{enumerate\}/g, '<ol class="list-decimal ml-6 my-2">')
       .replace(/\\end\{enumerate\}/g, '</ol>')
-      .replace(/\\item/g, '<li>')
-      .replace(/\$([^$]+)\$/g, '<code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: monospace; color: #1f2937;">$1</code>')
-      .replace(/\$\$([^$]+)\$\$/g, '<div style="text-align: center; margin: 1rem 0; padding: 1rem; background: #f9fafb; border-radius: 8px; font-family: monospace;">$1</div>')
+      .replace(/\\item/g, '<li class="mb-1">')
       .replace(/\\\\$/gm, '<br>')
       .replace(/\n\s*\n/g, '<br><br>')
       .trim();
@@ -260,7 +313,7 @@ ${latexOutput}
 
   // Test function for debugging
   const testConversion = () => {
-    setNaturalText('Create a document with the title "Mathematical Analysis". Add a section called "Derivatives" with the formula for the derivative of x squared, which is 2x. Then add another section about "Integrals" with a simple explanation.');
+    setNaturalText('Create a document with the title "Mathematical Analysis". Add a section called "Derivatives" with the formula for the derivative of x squared, which is 2x. Then add another section about "Integrals" with the integral of 2x dx equals x squared plus C.');
   };
 
   return (
@@ -288,6 +341,13 @@ ${latexOutput}
               {!ollamaConnected && (
                 <AlertCircle size={16} className="text-red-500" />
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${mathJaxLoaded ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <span className={`text-sm ${mathJaxLoaded ? 'text-green-700' : 'text-yellow-700'}`}>
+                MathJax {mathJaxLoaded ? 'Ready' : 'Loading...'}
+              </span>
             </div>
             
             {ollamaConnected && availableModels.length > 0 && (
@@ -397,7 +457,6 @@ ${latexOutput}
                   {showPreview ? 'Hide Preview' : 'Show Preview'}
                 </button>
                 <button
-                
                   onClick={downloadLatex}
                   disabled={!latexOutput.trim()}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-all duration-150 shadow-sm disabled:bg-slate-300"
@@ -437,20 +496,21 @@ ${latexOutput}
                 </div>
               )}
 
-              {/* Preview */}
+              {/* Preview with MathJax */}
               {showPreview && latexOutput && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">
-                    Preview:
+                    Preview {!mathJaxLoaded && <span className="text-yellow-600">(Loading MathJax...)</span>}:
                   </h3>
                   <div 
-                    className="bg-white p-4 border border-slate-300 rounded-xl h-48 overflow-auto mb-2 text-sm leading-relaxed text-slate-700"
+                    ref={previewRef}
+                    className="bg-white p-6 border border-slate-300 rounded-xl h-48 overflow-auto mb-2 text-sm leading-relaxed text-slate-700 tex2jax_process"
                     dangerouslySetInnerHTML={{ 
                       __html: renderLatexPreview(latexOutput) 
                     }}
                   />
                   <p className="text-xs text-gray-500">
-                    Note: This is a simplified preview. For full LaTeX rendering, use the downloaded .tex file with a LaTeX compiler.
+                    Mathematical expressions are rendered using MathJax for accurate preview.
                   </p>
                 </div>
               )}
