@@ -1,7 +1,7 @@
 # AutoTex 🧠➜📄
 AutoTex is a React application that allows you to convert natural language descriptions into clean, compilable LaTeX code using local LLMs powered by Ollama. It provides real-time LaTeX previews with MathJax and lets users download the LaTeX source as a .tex file.
 
-✨ **Features**
+# ✨ Features
 ✅ **Natural Language to LaTeX** via locally running LLM (e.g. LLaMA, Mistral)
 
 📦 **Ollama Integration** — run LLMs locally on localhost:11434
