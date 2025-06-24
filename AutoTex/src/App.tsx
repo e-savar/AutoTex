@@ -322,7 +322,7 @@ ${latexOutput}
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-md p-6 mb-8 border border-slate-200">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Natural Language to LaTeX Converter
+            AutoTex
           </h1>
           <p className="text-gray-600 mb-4">
             Convert natural language descriptions into LaTeX formatting using Ollama AI
